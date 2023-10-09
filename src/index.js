@@ -21,12 +21,20 @@ let status = [
         place: 1,
         title: "",
         button: "",
+        editingButton: "",
+        editingButtonText: "",
+        editingCategoryTitle: "",
+        editingCategoryText: "",
     },
     {
         chatId: "2128372313",
         place: 1,
         title: "",
         button: "",
+        editingButton: "",
+        editingButtonText: "",
+        editingCategoryTitle: "",
+        editingCategoryText: "",
     },
 ];
 
@@ -44,7 +52,6 @@ bot.on("polling_error", console.log);
 bot.on("message", async (message) => {
     const chatId = message.chat.id;
     const index = status.findIndex((el) => el.chatId == chatId);
-    console.log(message);
 
     if (chatId != "5614481899" && chatId != "2128372313") return bot.sendMessage(chatId, "⛔Доступ запрещён");
     else {
@@ -104,6 +111,46 @@ bot.on("message", async (message) => {
             bot.sendMessage(chatId, "✅Кнопка успешно добавлена в меню");
 
             status[index].place = 1;
+        } else if (status[index].place == 6) {
+            let button = await Button.findOne({ _id: status[index].editingButton });
+
+            button.text = message.text;
+
+            await button.save();
+
+            bot.sendMessage(chatId, "✅Название кнопки успешно изменено");
+
+            status[index].place = 1;
+        } else if (status[index].place == 7) {
+            let button = await Button.findOne({ _id: status[index].editingButtonText });
+
+            button.url = message.text;
+
+            await button.save();
+
+            bot.sendMessage(chatId, "✅Текст кнопки успешно изменен");
+
+            status[index].place = 1;
+        } else if (status[index].place == 8) {
+            let category = await Category.findOne({ _id: status[index].editingCategoryTitle });
+
+            category.title = message.text;
+
+            await category.save();
+
+            bot.sendMessage(chatId, "✅Название категории успешно изменено");
+
+            status[index].place = 1;
+        } else if (status[index].place == 9) {
+            let category = await Category.findOne({ _id: status[index].editingCategoryText });
+
+            category.callback = message.text;
+
+            await category.save();
+
+            bot.sendMessage(chatId, "✅Текст категории успешно изменен");
+
+            status[index].place = 1;
         }
     }
 });
@@ -115,8 +162,6 @@ bot.on("callback_query", async (message) => {
     const index = status.findIndex((el) => el.chatId == chatId);
     const mess = { chat_id: chatId, message_id: messageId };
 
-    console.log(message.data);
-
     if (method == "editCategory") {
         bot.editMessageReplyMarkup(
             {
@@ -125,6 +170,18 @@ bot.on("callback_query", async (message) => {
                         {
                             text: "➕Добавить категорию",
                             callback_data: "addCategory",
+                        },
+                    ],
+                    [
+                        {
+                            text: "✒️Изменить название категории",
+                            callback_data: "editCategoryTitle",
+                        },
+                    ],
+                    [
+                        {
+                            text: "✒️Изменить текст категории",
+                            callback_data: "editingCategoryText",
                         },
                     ],
                     [
@@ -154,7 +211,6 @@ bot.on("callback_query", async (message) => {
 
         let categories = await Category.find();
         categories = categories.map((el) => [{ text: el.title, callback_data: "deleteCategory " + el._id }]);
-        console.log(categories);
 
         bot.editMessageReplyMarkup({ inline_keyboard: categories }, mess);
     } else if (method == "editMenu") {
@@ -165,6 +221,18 @@ bot.on("callback_query", async (message) => {
                         {
                             text: "➕Добавить кнопку в меню",
                             callback_data: "addButton",
+                        },
+                    ],
+                    [
+                        {
+                            text: "✒️Изменить название кнопки",
+                            callback_data: "editMenuTitle",
+                        },
+                    ],
+                    [
+                        {
+                            text: "✒️Изменить текст кнопки",
+                            callback_data: "editMenuText",
                         },
                     ],
                     [
@@ -194,8 +262,67 @@ bot.on("callback_query", async (message) => {
 
         let buttons = await Button.find();
         buttons = buttons.map((el) => [{ text: el.text, callback_data: "deleteButton " + el._id }]);
-        console.log(buttons);
 
         bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+    } else if (method == "editMenuTitle") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            status[index].editingButton = id;
+            status[index].place = 6;
+
+            bot.sendMessage(chatId, "Введи новое название кнопки");
+        } else {
+            let buttons = await Button.find();
+
+            buttons = buttons.map((el) => [{ text: el.text, callback_data: "editMenuTitle " + el._id }]);
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        }
+    } else if (method == "editMenuText") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            status[index].editingButtonText = id;
+            status[index].place = 7;
+
+            let button = await Button.findOne({ _id: id });
+
+            bot.sendMessage(chatId, "Текущий текст: \n\n" + button.url + "\n\nВведи новый текст кнопки");
+        } else {
+            let buttons = await Button.find();
+
+            buttons = buttons.map((el) => [{ text: el.text, callback_data: "editMenuText " + el._id }]);
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        }
+    } else if (method == "editCategoryTitle") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            status[index].editingCategoryTitle = id;
+            status[index].place = 8;
+
+            bot.sendMessage(chatId, "Введи новое название категории");
+        } else {
+            let categories = await Category.find();
+
+            categories = categories.map((el) => [{ text: el.title, callback_data: "editCategoryTitle " + el._id }]);
+            bot.editMessageReplyMarkup({ inline_keyboard: categories }, mess);
+        }
+    } else if (method == "editingCategoryText") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            status[index].editingCategoryText = id;
+            status[index].place = 9;
+
+            let category = await Category.findOne({ _id: id });
+
+            bot.sendMessage(chatId, "Текущий текст: \n\n" + category.callback + "\n\nВведи новый текст категории");
+        } else {
+            let categories = await Category.find();
+
+            categories = categories.map((el) => [{ text: el.title, callback_data: "editingCategoryText " + el._id }]);
+            bot.editMessageReplyMarkup({ inline_keyboard: categories }, mess);
+        }
     }
 });

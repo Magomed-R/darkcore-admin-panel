@@ -20,11 +20,13 @@ let status = [
         chatId: "5614481899",
         place: 1,
         title: "",
+        button: "",
     },
     {
         chatId: "2128372313",
         place: 1,
         title: "",
+        button: "",
     },
 ];
 
@@ -52,6 +54,12 @@ bot.on("message", async (message) => {
                     inline_keyboard: [
                         [
                             {
+                                text: "Основное меню",
+                                callback_data: "editMenu",
+                            },
+                        ],
+                        [
+                            {
                                 text: "Категории",
                                 callback_data: "editCategory",
                             },
@@ -76,6 +84,26 @@ bot.on("message", async (message) => {
             bot.sendMessage(chatId, "✅Категория успешно добавлена");
 
             status[index].place = 1;
+        } else if (status[index].place == 4) {
+            status[index].button = message.text;
+
+            bot.sendMessage(chatId, "Теперь введи текст, который должен отправляться при нажатии на кнопку меню");
+
+            status[index].place = 5;
+        } else if (status[index].place == 5) {
+            let buttons = await Button.find().sort({ order: -1 });
+
+            let newButton = new Button({
+                order: buttons[0].order + 1,
+                text: status[index].button,
+                url: message.text,
+            });
+
+            await newButton.save();
+
+            bot.sendMessage(chatId, "✅Кнопка успешно добавлена в меню");
+
+            status[index].place = 1;
         }
     }
 });
@@ -86,6 +114,8 @@ bot.on("callback_query", async (message) => {
     const messageId = message.message.message_id;
     const index = status.findIndex((el) => el.chatId == chatId);
     const mess = { chat_id: chatId, message_id: messageId };
+
+    console.log(message.data);
 
     if (method == "editCategory") {
         bot.editMessageReplyMarkup(
@@ -113,7 +143,59 @@ bot.on("callback_query", async (message) => {
 
         status[index].place = 2;
     } else if (method == "deleteCategory") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            await Category.deleteOne({ _id: id });
+            bot.sendMessage(chatId, "✅Категория успешно удалена!");
+        }
+
+        bot.editMessageText("🗑️Выбери категорию, которую хочешь удалить", mess);
+
+        let categories = await Category.find();
+        categories = categories.map((el) => [{ text: el.title, callback_data: "deleteCategory " + el._id }]);
+        console.log(categories);
+
+        bot.editMessageReplyMarkup({ inline_keyboard: categories }, mess);
+    } else if (method == "editMenu") {
+        bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "➕Добавить кнопку в меню",
+                            callback_data: "addButton",
+                        },
+                    ],
+                    [
+                        {
+                            text: "➖Удалить кнопку из меню",
+                            callback_data: "deleteButton",
+                        },
+                    ],
+                ],
+            },
+            mess
+        );
+    } else if (method == "addButton") {
         bot.editMessageReplyMarkup({ inline_keyboard: [] }, mess);
-        bot.editMessageText("Введи название новой категории", mess);
+        bot.editMessageText("Введи название новой кнопки", mess);
+
+        status[index].place = 4;
+    } else if (method == "deleteButton") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            await Button.deleteOne({ _id: id });
+            bot.sendMessage(chatId, "✅Кнопка успешно удалена из меню!");
+        }
+
+        bot.editMessageText("🗑️Выбери кнопку, которую хочешь удалить", mess);
+
+        let buttons = await Button.find();
+        buttons = buttons.map((el) => [{ text: el.text, callback_data: "deleteButton " + el._id }]);
+        console.log(buttons);
+
+        bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
     }
 });

@@ -61,6 +61,12 @@ bot.on("message", async (message) => {
                     inline_keyboard: [
                         [
                             {
+                                text: "Меню обязательных подписок",
+                                callback_data: "editSubMenu",
+                            },
+                        ],
+                        [
+                            {
                                 text: "Основное меню",
                                 callback_data: "editMenu",
                             },
@@ -149,6 +155,16 @@ bot.on("message", async (message) => {
             await category.save();
 
             bot.sendMessage(chatId, "✅Текст категории успешно изменен");
+
+            status[index].place = 1;
+        } else if (status[index].place == 10) {
+            let newGroup = new Group({
+                group: message.text.slice(13),
+            });
+
+            await newGroup.save();
+
+            bot.sendMessage(chatId, "✅Кнопка подписки успешно добавлена");
 
             status[index].place = 1;
         }
@@ -324,5 +340,47 @@ bot.on("callback_query", async (message) => {
             categories = categories.map((el) => [{ text: el.title, callback_data: "editingCategoryText " + el._id }]);
             bot.editMessageReplyMarkup({ inline_keyboard: categories }, mess);
         }
+    } else if (method == "editSubMenu") {
+        bot.editMessageReplyMarkup(
+            {
+                inline_keyboard: [
+                    [
+                        {
+                            text: "➕Добавить кнопку подписки",
+                            callback_data: "addSubButton",
+                        },
+                    ],
+                    [
+                        {
+                            text: "➖Удалить кнопку подписки",
+                            callback_data: "deleteSubButton",
+                        },
+                    ],
+                ],
+            },
+            mess
+        );
+    } else if (method == "addSubButton") {
+        bot.editMessageReplyMarkup({ inline_keyboard: [] }, mess);
+        bot.editMessageText(
+            "Вставь ссылку на канал для новой кнопки\n\n<b>Внимание!</b> Ссылка должна выглядеть так: \nhttps://t.me/<i>тут ссылка</i>",
+            { chat_id: chatId, message_id: messageId, parse_mode: "HTML" }
+        );
+
+        status[index].place = 10;
+    } else if (method == "deleteSubButton") {
+        let id = message.data.split(" ")[1];
+
+        if (id) {
+            await Group.deleteOne({ _id: id });
+            bot.sendMessage(chatId, "✅Кнопка подписки успешно удалена из меню!");
+        }
+
+        bot.editMessageText("🗑️Выбери кнопку, которую хочешь удалить", mess);
+
+        let buttons = await Group.find();
+        buttons = buttons.map((el) => [{ text: el.group, callback_data: "deleteSubButton " + el._id }]);
+
+        bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
     }
 });

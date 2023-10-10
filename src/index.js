@@ -253,6 +253,12 @@ bot.on("callback_query", async (message) => {
                     ],
                     [
                         {
+                            text: "🔁Поменять кнопки местами",
+                            callback_data: "replaceButton",
+                        },
+                    ],
+                    [
+                        {
                             text: "➖Удалить кнопку из меню",
                             callback_data: "deleteButton",
                         },
@@ -382,5 +388,37 @@ bot.on("callback_query", async (message) => {
         buttons = buttons.map((el) => [{ text: el.group, callback_data: "deleteSubButton " + el._id }]);
 
         bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+    } else if (method == "replaceButton") {
+        let firstId = message.data.split(" ")[1];
+        let secondId = message.data.split(" ")[2];
+
+        if (secondId) {
+            let firstButton = await Button.findOne({ _id: firstId });
+            let secondButton = await Button.findOne({ _id: secondId });
+            let temp = 0;
+
+            temp = secondButton.order;
+            secondButton.order = firstButton.order;
+            firstButton.order = temp;
+
+            await firstButton.save();
+            await secondButton.save();
+
+            bot.sendMessage(chatId, "✅Кнопки успешно изменены местами");
+        } else if (firstId) {
+            bot.editMessageText("Теперь выбери вторую кнопку для замены", mess);
+
+            let buttons = await Button.find().sort({ order: 1 });
+            buttons = buttons.map((el) => [{ text: el.text, callback_data: message.data + " " + el._id }]);
+
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        } else {
+            bot.editMessageText("Выбери первую кнопку для замены", mess);
+
+            let buttons = await Button.find().sort({ order: 1 });
+            buttons = buttons.map((el) => [{ text: el.text, callback_data: "replaceButton " + el._id }]);
+
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        }
     }
 });

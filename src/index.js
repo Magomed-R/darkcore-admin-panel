@@ -87,9 +87,11 @@ bot.on("message", async (message) => {
 
             status[index].place = 3;
         } else if (status[index].place == 3) {
+            let lastCategory = await Category.find().sort({order: 1})[0]
             let newCategory = new Category({
                 title: status[index].title,
                 callback: message.text,
+                order: lastCategory.order + 1
             });
 
             await newCategory.save();
@@ -198,6 +200,12 @@ bot.on("callback_query", async (message) => {
                         {
                             text: "✒️Изменить текст категории",
                             callback_data: "editingCategoryText",
+                        },
+                    ],
+                    [
+                        {
+                            text: "🔁Поменять кнопки местами",
+                            callback_data: "replaceCategory",
                         },
                     ],
                     [
@@ -417,6 +425,44 @@ bot.on("callback_query", async (message) => {
 
             let buttons = await Button.find().sort({ order: 1 });
             buttons = buttons.map((el) => [{ text: el.text, callback_data: "replaceButton " + el._id }]);
+
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        }
+    } else if (method == "replaceCategory" || method == "rC") {
+        let firstId = message.data.split(" ")[1];
+        let secondId = message.data.split(" ")[2];
+
+        if (secondId) {
+            let firstButton = await Category.findOne({ _id: firstId });
+            let secondButton = await Category.findOne({ _id: secondId });
+            let temp = 0;
+
+            temp = secondButton.order;
+            secondButton.order = firstButton.order;
+            firstButton.order = temp;
+
+            await firstButton.save();
+            await secondButton.save();
+
+            let buttons = await Category.find().sort({ order: 1 });
+            buttons = buttons.map((el) => [{ text: el.title, callback_data: "rC " + el._id }]);
+
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+
+            bot.sendMessage(chatId, "✅Категории успешно изменены местами");
+        } else if (firstId) {
+            bot.editMessageText("Теперь выбери вторую категорию для замены", mess);
+
+            let buttons = await Category.find().sort({ order: 1 });
+            buttons = buttons.map((el) => [{ text: el.title, callback_data: message.data + " " + el._id }]);
+
+            bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
+        } else {
+            bot.editMessageText("Выбери первую категорию для замены", mess);
+
+            let buttons = await Category.find().sort({ order: 1 });
+            
+            buttons = buttons.map((el) => [{ text: el.title, callback_data: "rC " + el._id }]);
 
             bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
         }

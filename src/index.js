@@ -14,6 +14,8 @@ mongoose
 import Group from "./Models/Group.js";
 import Button from "./Models/Button.js";
 import Category from "./Models/Category.js";
+import Mailing from "./Models/Mailing.js";
+import User from "./Models/User.js";
 
 let status = [
     {
@@ -45,6 +47,10 @@ bot.setMyCommands([
         command: "/menu",
         description: "Открыть меню",
     },
+    {
+        command: "/stata",
+        description: "Статистика",
+    },
 ]);
 
 bot.on("polling_error", console.log);
@@ -55,7 +61,21 @@ bot.on("message", async (message) => {
 
     if (chatId != "5614481899" && chatId != "2128372313") return bot.sendMessage(chatId, "⛔Доступ запрещён");
     else {
-        if (status[index].place == 1) {
+        if (message.text.includes("/stata")) {
+            bot.deleteMessage(chatId, message.message_id);
+
+            let users = await User.find().sort({ createdAt: -1 });
+            let result = "Всего " + users.length + " подписчиков\n\nПользователь - Подписался\n";
+
+            for (let i = 0; i < users.length; i++) {
+                result += `@${users[i].username} - ${getDate(users[i].createdAt)}\n`;
+            }
+
+            bot.sendMessage(chatId, result);
+
+            return;
+        } else if (status[index].place == 1 || message.text == "/menu") {
+            status[index].place == 1;
             bot.sendMessage(chatId, "Что менять?", {
                 reply_markup: {
                     inline_keyboard: [
@@ -77,6 +97,12 @@ bot.on("message", async (message) => {
                                 callback_data: "editCategory",
                             },
                         ],
+                        [
+                            {
+                                text: "Создать рассылку",
+                                callback_data: "newMessage",
+                            },
+                        ],
                     ],
                 },
             });
@@ -87,11 +113,12 @@ bot.on("message", async (message) => {
 
             status[index].place = 3;
         } else if (status[index].place == 3) {
-            let lastCategory = await Category.find().sort({order: 1})[0]
+            let lastCategory = await Category.find();
+
             let newCategory = new Category({
                 title: status[index].title,
                 callback: message.text,
-                order: lastCategory.order + 1
+                order: lastCategory.length + 1,
             });
 
             await newCategory.save();
@@ -167,6 +194,17 @@ bot.on("message", async (message) => {
             await newGroup.save();
 
             bot.sendMessage(chatId, "✅Кнопка подписки успешно добавлена");
+
+            status[index].place = 1;
+        } else if (status[index].place == 11) {
+            let newMailing = new Mailing({
+                text: message.text,
+                status: "not processed",
+            });
+
+            newMailing.save();
+
+            bot.sendMessage(chatId, "✅Рассылка успешно отправлена");
 
             status[index].place = 1;
         }
@@ -461,10 +499,19 @@ bot.on("callback_query", async (message) => {
             bot.editMessageText("Выбери первую категорию для замены", mess);
 
             let buttons = await Category.find().sort({ order: 1 });
-            
+
             buttons = buttons.map((el) => [{ text: el.title, callback_data: "rC " + el._id }]);
 
             bot.editMessageReplyMarkup({ inline_keyboard: buttons }, mess);
         }
+    } else if (method == "newMessage") {
+        bot.editMessageText("Введи текст для рассылки всем участникам", mess);
+        status[index].place = 11;
     }
 });
+
+import dayjs from "dayjs";
+
+function getDate(date) {
+    return dayjs(date).format("DD.MM.YYYY");
+}

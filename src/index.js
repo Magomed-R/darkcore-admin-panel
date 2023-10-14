@@ -19,7 +19,7 @@ import User from "./Models/User.js";
 
 let status = [
     {
-        chatId: "5614481899",
+        chatId: process.env.CLIENT_ID,
         place: 1,
         title: "",
         button: "",
@@ -29,7 +29,7 @@ let status = [
         editingCategoryText: "",
     },
     {
-        chatId: "2128372313",
+        chatId: process.env.DEVELOP_ID,
         place: 1,
         title: "",
         button: "",
@@ -59,7 +59,7 @@ bot.on("message", async (message) => {
     const chatId = message.chat.id;
     const index = status.findIndex((el) => el.chatId == chatId);
 
-    if (chatId != "5614481899" && chatId != "2128372313") return bot.sendMessage(chatId, "⛔Доступ запрещён");
+    if (chatId != process.env.CLIENT_ID && chatId != process.env.DEVELOP_ID) return bot.sendMessage(chatId, "⛔Доступ запрещён");
     else {
         if (message.text.includes("/stata")) {
             bot.deleteMessage(chatId, message.message_id);

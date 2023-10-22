@@ -69,6 +69,10 @@ bot.on("message", async (message) => {
 
             for (let i = 0; i < users.length; i++) {
                 result += `@${users[i].username} - ${getDate(users[i].createdAt)}\n`;
+                if (i % 50 == 0 && i != 0) {
+                    bot.sendMessage(chatId, result);
+                    result = ''
+                }
             }
 
             bot.sendMessage(chatId, result);
